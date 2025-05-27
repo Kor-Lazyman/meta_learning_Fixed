@@ -50,7 +50,7 @@ class outer_loop(PPOAgent):
         not_dones = (1 - dones).unsqueeze(1)
         next_values = (next_values * not_dones).clone()
         '''
-        # 경험에서 가져와야할 모든 자료는 inner_model의 데이터를 사용하되, action에 관한 경험은 outer에서 가져옴옴
+        # 경험에서 가져와야할 모든 자료는 inner_model의 데이터를 사용
         _, inner_values = inner_model.model.policy(inner_states)
         _, inner_next_values = inner_model.model.policy(inner_next_states)
         inner_not_dones = (1 - inner_dones).unsqueeze(1)
@@ -87,7 +87,7 @@ class outer_loop(PPOAgent):
                 surr1 = ratio * batch_advantages
                 surr2 = torch.clamp(ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon) * batch_advantages
                 policy_loss = -torch.min(surr1, surr2).mean()
-
+                
                 value_loss = nn.MSELoss()(values_new.view(-1), batch_inner_value_target)
                 
                 entropy = torch.stack([

@@ -22,7 +22,7 @@ VF_COEF = 0.5
 
 
 class inner_model:
-    def __init__(self, env, n_steps, lr, batch_size, total_steps):
+    def __init__(self, env, state_dict, n_steps, lr, batch_size, total_steps):
         self.action_dims = [len(ACTION_SPACE) for _ in range(MAT_COUNT)]  # MultiDiscrete
         self.env = env
         self.step = n_steps
@@ -30,9 +30,9 @@ class inner_model:
         self.batch_szie = batch_size
         self.state_dim = len(self.env.reset())
         self.total_steps = total_steps
-        self.build_model(self.env)
+        self.build_model(self.env, state_dict)
 
-    def build_model(self, env):
+    def build_model(self, env, state_dict):
         """
         Build and return a PPOAgent model using the environment's state dimension and MAT_COUNT.
         
@@ -50,7 +50,7 @@ class inner_model:
             clip_epsilon = CLIP_EPSILON,
             update_steps = self.step
         )
-
+        self.model.policy.load_state_dict(state_dict)
 
     def simulation_worker(self, model_state_dict):
         """
@@ -63,8 +63,6 @@ class inner_model:
         Returns:
             tuple: (core_index, episode_transitions, episode_reward)
         """
-        
-        self.model.policy.load_state_dict(model_state_dict)
         
         state = self.env.reset()
         done = False

@@ -23,8 +23,8 @@ BATCH_SIZE = 20  # Default 64
 N_STEPS = SIM_TIME*K  # Default 2048
 
 BETA = 0.0001  # Outer loop step size ## Default: 0.001
-train_scenario_batch_size = 10  # Batch size for random chosen scenarios
-test_scenario_batch_size = 5  # Batch size for random chosen scenarios
+train_scenario_batch_size = 5  # Batch size for random chosen scenarios
+test_scenario_batch_size = 2  # Batch size for random chosen scenarios
 num_outer_updates = 1000  # Number of outer loop updates -> meta-training iterations
 tensor_save_path = TENSORFLOW_LOGS
 model_name = SAVED_MODEL_NAME
@@ -49,21 +49,23 @@ class MetaLearner:
             lr = 3e-4,
             gamma = 0.99,
             clip_epsilon = CLIP_EPSILON,
-            update_steps = 10
+            update_steps = 5
         )
         self.writer = SummaryWriter(log_dir=tensor_save_path)
 
     def inner_loop(self, k = K):
         self.env.reset()
-        model = inner_model(self.env, n_steps = 10, lr = self.alpha, batch_size = BATCH_SIZE, total_steps = 100)
+        state_dict = self.meta_model.policy.state_dict()
+        model = inner_model(self.env,  state_dict, n_steps = 5, lr = 3e-4, batch_size = BATCH_SIZE, total_steps = 100)
         model.main_module()
         return model
 
-    def meta_update(self, adapted_model):
+    def meta_update(self, adapted_models):
+        print("MetaLearning Start")
         self.meta_model.update_steps = 10      
         self.meta_model.device = DEVICE
-
-        self.meta_model.update(adapted_model)
+        for model in adapted_models:
+            self.meta_model.update(model)
 
     def meta_test(self, iteration, test_scenario_batch):
         """
@@ -74,6 +76,7 @@ class MetaLearner:
         #                        for _ in range(test_scenario_batch_size)]
 
         # Set the scenario for the environment
+        print("Meta Learning Started")
         all_rewards = []
         for test_scenario in test_scenario_batch:
             # for test_scenario in test_scenario_batch:
@@ -83,7 +86,7 @@ class MetaLearner:
             print("\n\nTEST SCENARIO: ", self.env.scenario)
             for x in range(SIM_TIME):
                 action = self.meta_model.select_action(state)
-                state, reward, done, _ = self.env.step(action)
+                state, reward, done, _ = self.env.step(action[0])
                 episode_reward += reward
             all_rewards.append(episode_reward)
 
@@ -116,6 +119,7 @@ def main():
     print(f"Total {len(all_scenarios)} scenarios have been generated.")
     # Split scenarios into 8:2 ratio
     train_scenarios, test_scenarios = split_scenarios(all_scenarios)
+    
     print(f"Number of training scenarios: {len(train_scenarios)}")
     print(f"Number of test scenarios: {len(test_scenarios)}")
     for iteration in range(num_outer_updates):
@@ -128,7 +132,7 @@ def main():
         if iteration == num_outer_updates-1:
             meta_learner.env.outer_end = True
         # Adapt the meta-policy to each scenario in the batch
-
+        adapted_models = []
         for scenario in train_scenario_batch:  # LINE 4
             print("\n\nTRAINING SCENARIO(DEMAND): ", scenario["DEMAND"])
             print("\n\nTRAINING SCENARIO(LEAD_TIME): ", scenario["LEADTIME"])
@@ -139,10 +143,10 @@ def main():
             print("Demand: ", meta_learner.env.scenario["DEMAND"])
             print("Lead_time: ", meta_learner.env.scenario["LEADTIME"])
             # LINE 5 - 7
-            adapted_model = meta_learner.inner_loop()  # LINE 6-7
+            adapted_models.append(meta_learner.inner_loop())  # LINE 6-7
             # LINE 8: 학습된 모델로부터 rollout 수집
             # rollout buffer에는 K개의 에피소드가 저장되어 있음
-            meta_learner.meta_update(adapted_model)
+            
             # rollout_list.append(rollout_buffer)
             '''
             # LINE 8: 학습된 모델로부터 rollout 수집
@@ -154,9 +158,10 @@ def main():
         # # LINE 10: Perform the meta-update step
         # meta_learner.meta_update(rollout_list)
 
+        meta_learner.meta_update(adapted_models)
         # Evaluate the meta-policy on the test scenario
         test_scenario_batch = random.sample(
-            test_scenarios, test_scenario_batch_size)
+            train_scenario_batch, test_scenario_batch_size)
         meta_mean_reward, meta_std_reward = meta_learner.meta_test(
             iteration, test_scenario_batch)
         meta_rewards.append(meta_mean_reward)

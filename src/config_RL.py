@@ -60,7 +60,7 @@ def save_path(path):
 
 
 # Episode
-N_EPISODES = 5000  # Default: 5000
+N_EPISODES = 3000  # Default: 5000
 
 # RL algorithms
 RL_ALGORITHM = "PPO"  # "DP", "DQN", "DDPG", "PPO", "SAC"
@@ -91,8 +91,8 @@ current_dir = os.path.dirname(__file__)
 parent_dir = os.path.dirname(current_dir)
 
 # Define dir's path
-DRL_TENSORBOARD = False  # When True for DRL
-EXPERIMENT_MAML = True  # When True for EXPERIMENT_MAML
+DRL_TENSORBOARD = True  # When True for DRL
+EXPERIMENT_MAML = False  # When True for EXPERIMENT_MAML
 EXPERIMENT_ADAPTATION = False  # When True for EXPERIMENT_ADAPTATION
 
 if EXPERIMENT_MAML:

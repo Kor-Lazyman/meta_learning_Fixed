@@ -16,7 +16,7 @@ class GymInterface(gym.Env):
     def __init__(self):
         self.outer_end = False
         self.writer = SummaryWriter(log_dir=TENSORFLOW_LOGS)
-        print("Tensorboard Directory: :", TENSORFLOW_LOGS)
+        #print("Tensorboard Directory: :", TENSORFLOW_LOGS)
         super(GymInterface, self).__init__()
 
         # Scenario initialization for the demand
